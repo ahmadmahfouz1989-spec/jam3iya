@@ -54,7 +54,7 @@ export default function Nav() {
           {session?.user?.name && (
             <span className="text-xs font-semibold text-gray-400">{session.user.name}</span>
           )}
-          <button onClick={() => signOut({ callbackUrl: "/login" })}
+          <button onClick={() => signOut({ redirect: false }).then(() => window.location.replace("/login"))}
             className="text-xs font-semibold text-gray-400 hover:text-pink-400 transition-colors px-3 py-1.5 rounded-xl hover:bg-pink-50">
             Sign out
           </button>
