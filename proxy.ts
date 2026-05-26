@@ -8,7 +8,10 @@ export default function proxy(req: NextRequest) {
   }
 
   // Optimistic check: presence of session cookie means logged in
+  // NextAuth v5 uses "authjs.*" prefix; v4 used "next-auth.*"
   const isLoggedIn =
+    !!req.cookies.get("authjs.session-token") ||
+    !!req.cookies.get("__Secure-authjs.session-token") ||
     !!req.cookies.get("next-auth.session-token") ||
     !!req.cookies.get("__Secure-next-auth.session-token")
   const isLoginPage = pathname === "/login"
