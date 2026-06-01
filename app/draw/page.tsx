@@ -57,6 +57,7 @@ export default function DrawPage() {
   const [spinName, setSpinName] = useState("")
   const [alertMsg, setAlertMsg] = useState<string | null>(null)
   const [flash, setFlash] = useState<{ name: string; pot: number } | null>(null)
+  const [mode, setMode] = useState<"auto" | "manual" | null>(null)
 
   const load = useCallback(async () => {
     const res = await fetch("/api/cycles")
@@ -71,6 +72,13 @@ export default function DrawPage() {
     data?.round.cycles.filter(c => c.draw).map(c => c.draw!.winner.id) ?? []
   )
   const eligible = (data?.members ?? []).filter(m => m.isActive && !winnerIdsThisRound.has(m.id))
+
+  function celebrate(draw: { winner: Member; totalPot: number }) {
+    setResult(draw)
+    setFlash({ name: draw.winner.name, pot: draw.totalPot })
+    playCelebrationSound()
+    launchConfetti()
+  }
 
   async function runDraw() {
     if (!openCycle) return
@@ -89,14 +97,31 @@ export default function DrawPage() {
 
     const res = await fetch(`/api/cycles/${openCycle.id}/draw`, { method: "POST" })
     if (res.ok) {
-      const draw = await res.json()
-      setResult(draw)
-      setFlash({ name: draw.winner.name, pot: draw.totalPot })
-      playCelebrationSound()
-      launchConfetti()
+      celebrate(await res.json())
       await load()
     } else {
       setAlertMsg((await res.json()).error ?? "Something went wrong")
+      setMode(null)
+    }
+    setDrawing(false)
+  }
+
+  async function pickWinner(memberId: string) {
+    if (!openCycle) return
+    setDrawing(true)
+    setResult(null)
+
+    const res = await fetch(`/api/cycles/${openCycle.id}/draw`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ winnerId: memberId }),
+    })
+    if (res.ok) {
+      celebrate(await res.json())
+      await load()
+    } else {
+      setAlertMsg((await res.json()).error ?? "Something went wrong")
+      setMode(null)
     }
     setDrawing(false)
   }
@@ -173,7 +198,7 @@ export default function DrawPage() {
             </p>
             <div className="flex items-center gap-3 mt-2">
               <span className="text-sm text-gray-500 font-medium">
-                {openCycle.payments.length}/{data.members.filter(m => new Date((m as any).createdAt) <= new Date(openCycle.createdAt)).length} paid
+                {openCycle.payments.length}/{data.members.length} paid
               </span>
               <span className="text-sm font-bold"
                 style={{ background: "linear-gradient(135deg, #ec4899, #a855f7)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
@@ -186,7 +211,7 @@ export default function DrawPage() {
             {/* Eligible */}
             <div>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
-                Eligible — {eligible.length} girls
+                Eligible — {eligible.length} members
               </p>
               <div className="flex flex-wrap gap-2">
                 {eligible.map(m => (
@@ -227,28 +252,76 @@ export default function DrawPage() {
               </div>
             )}
 
-            {/* Draw button or blocked message */}
+            {/* Action area */}
             {!result && !spinning && (() => {
               const paidMemberIds = new Set(openCycle.payments.map(p => p.memberId))
-              const expectedPayers = data.members.filter(m => new Date((m as any).createdAt) <= new Date(openCycle.createdAt))
-              const unpaid = expectedPayers.filter(m => !paidMemberIds.has(m.id))
-              return unpaid.length === 0 ? (
-                <button onClick={runDraw} disabled={drawing}
-                  className="w-full py-4 rounded-2xl text-white font-black text-lg tracking-wide transition-all disabled:opacity-60"
-                  style={{ background: "linear-gradient(135deg, #ec4899, #a855f7)", boxShadow: "0 4px 24px rgba(236,72,153,0.35)" }}
-                  onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 8px 32px rgba(236,72,153,0.5)"; e.currentTarget.style.transform = "translateY(-2px)" }}
-                  onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 4px 24px rgba(236,72,153,0.35)"; e.currentTarget.style.transform = "none" }}>
-                  🎰 Draw Winner
-                </button>
-              ) : (
-                <div className="rounded-2xl px-5 py-4 text-center"
-                  style={{ background: "rgba(255,228,230,0.5)", border: "1.5px solid rgba(254,202,202,0.8)" }}>
-                  <p className="font-bold text-rose-500 text-sm">Waiting on payments</p>
-                  <p className="text-rose-400 text-sm mt-1">
-                    {unpaid.map(m => m.name).join(", ")}
-                  </p>
-                </div>
-              )
+              const unpaid = data.members.filter(m => !paidMemberIds.has(m.id))
+
+              if (unpaid.length > 0) {
+                return (
+                  <div className="rounded-2xl px-5 py-4 text-center"
+                    style={{ background: "rgba(255,228,230,0.5)", border: "1.5px solid rgba(254,202,202,0.8)" }}>
+                    <p className="font-bold text-rose-500 text-sm">Waiting on payments</p>
+                    <p className="text-rose-400 text-sm mt-1">
+                      {unpaid.map(m => m.name).join(", ")}
+                    </p>
+                  </div>
+                )
+              }
+
+              if (mode === null) {
+                return (
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => { setMode("auto"); runDraw() }}
+                      disabled={drawing}
+                      className="py-4 rounded-2xl text-white font-black text-sm tracking-wide transition-all disabled:opacity-60"
+                      style={{ background: "linear-gradient(135deg, #ec4899, #a855f7)", boxShadow: "0 4px 24px rgba(236,72,153,0.35)" }}
+                      onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)" }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = "none" }}>
+                      🎰 Random Draw
+                    </button>
+                    <button
+                      onClick={() => setMode("manual")}
+                      disabled={drawing}
+                      className="py-4 rounded-2xl font-black text-sm tracking-wide transition-all disabled:opacity-60"
+                      style={{ background: "rgba(253,242,248,0.8)", color: "#db2777", border: "1.5px solid rgba(251,207,232,0.6)" }}
+                      onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)" }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = "none" }}>
+                      👆 Pick Winner
+                    </button>
+                  </div>
+                )
+              }
+
+              if (mode === "manual") {
+                return (
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => setMode(null)}
+                      className="text-xs font-bold text-gray-400 flex items-center gap-1 hover:text-gray-600 transition-colors">
+                      ← Back
+                    </button>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Tap to select winner</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {eligible.map(m => (
+                        <button
+                          key={m.id}
+                          onClick={() => pickWinner(m.id)}
+                          disabled={drawing}
+                          className="py-3 px-4 rounded-2xl text-sm font-bold text-left transition-all disabled:opacity-60"
+                          style={{ background: "rgba(253,242,248,0.8)", color: "#db2777", border: "1.5px solid rgba(251,207,232,0.6)" }}
+                          onMouseEnter={e => { e.currentTarget.style.background = "rgba(236,72,153,0.1)"; e.currentTarget.style.transform = "translateY(-1px)" }}
+                          onMouseLeave={e => { e.currentTarget.style.background = "rgba(253,242,248,0.8)"; e.currentTarget.style.transform = "none" }}>
+                          {m.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )
+              }
+
+              return null
             })()}
           </div>
         </div>

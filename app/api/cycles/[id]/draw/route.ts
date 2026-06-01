@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
-export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id: cycleId } = await params
+  const body = await req.json().catch(() => ({}))
+  const { winnerId } = body
 
   const cycle = await prisma.cycle.findUnique({
     where: { id: cycleId },
@@ -11,7 +13,6 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   if (!cycle) return NextResponse.json({ error: "Cycle not found" }, { status: 404 })
   if (cycle.draw) return NextResponse.json({ error: "Draw already done for this cycle" }, { status: 400 })
 
-  // Find members who have NOT won in this round
   const winnersThisRound = await prisma.draw.findMany({
     where: { cycle: { roundId: cycle.roundId } },
     select: { winnerId: true },
@@ -22,11 +23,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   const payments = await prisma.payment.findMany({ where: { cycleId } })
   const paidIds = new Set(payments.map((p) => p.memberId))
 
-  // Only members who existed when this cycle was created are expected to pay
-  const expectedPayers = activeMembers.filter(
-    (m) => new Date(m.createdAt) <= new Date(cycle.createdAt)
-  )
-  const unpaid = expectedPayers.filter((m) => !paidIds.has(m.id))
+  const unpaid = activeMembers.filter((m) => !paidIds.has(m.id))
   if (unpaid.length > 0) {
     const names = unpaid.map((m) => m.name).join(", ")
     return NextResponse.json(
@@ -40,10 +37,18 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "No eligible members for draw" }, { status: 400 })
   }
 
-  const winner = eligible[Math.floor(Math.random() * eligible.length)]
+  let winner
+  if (winnerId) {
+    winner = eligible.find((m) => m.id === winnerId)
+    if (!winner) {
+      return NextResponse.json({ error: "Selected member is not eligible" }, { status: 400 })
+    }
+  } else {
+    winner = eligible[Math.floor(Math.random() * eligible.length)]
+  }
 
   const round = await prisma.round.findUnique({ where: { id: cycle.roundId } })
-  const totalPot = (round?.contributionAmount ?? 0) * expectedPayers.length
+  const totalPot = (round?.contributionAmount ?? 0) * activeMembers.length
 
   const draw = await prisma.draw.create({
     data: { cycleId, winnerId: winner.id, totalPot },
@@ -52,7 +57,6 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
   await prisma.cycle.update({ where: { id: cycleId }, data: { status: "COMPLETED" } })
 
-  // If all members have won, auto-start next round
   const allWinners = await prisma.draw.findMany({
     where: { cycle: { roundId: cycle.roundId } },
     select: { winnerId: true },
