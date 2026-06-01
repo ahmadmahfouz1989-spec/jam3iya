@@ -57,3 +57,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   return NextResponse.json(draw)
 }
+
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id: cycleId } = await params
+
+  const cycle = await prisma.cycle.findUnique({ where: { id: cycleId }, include: { draw: true } })
+  if (!cycle) return NextResponse.json({ error: "Cycle not found" }, { status: 404 })
+  if (!cycle.draw) return NextResponse.json({ error: "No draw to undo" }, { status: 400 })
+
+  await prisma.draw.delete({ where: { cycleId } })
+  await prisma.cycle.update({ where: { id: cycleId }, data: { status: "OPEN" } })
+  await prisma.round.update({ where: { id: cycle.roundId }, data: { status: "ACTIVE" } })
+
+  return NextResponse.json({ ok: true })
+}

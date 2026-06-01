@@ -106,6 +106,16 @@ export default function DrawPage() {
     setDrawing(false)
   }
 
+  async function redoDraw() {
+    if (!openCycle) return
+    const res = await fetch(`/api/cycles/${openCycle.id}/draw`, { method: "DELETE" })
+    if (res.ok) {
+      setResult(null)
+      setMode(null)
+      await load()
+    }
+  }
+
   async function pickWinner(memberId: string) {
     if (!openCycle) return
     setDrawing(true)
@@ -186,6 +196,14 @@ export default function DrawPage() {
             <p className="text-pink-200 text-sm font-bold uppercase tracking-widest">Winner — Round {openCycle.cycleNumber}</p>
             <p className="text-4xl font-black mt-2">{openCycle.draw.winner.name}</p>
             <p className="text-2xl font-bold text-pink-200 mt-2">{currency(openCycle.draw.totalPot)}</p>
+            <button
+              onClick={redoDraw}
+              className="mt-5 px-5 py-2 rounded-full text-sm font-bold transition-all"
+              style={{ background: "rgba(255,255,255,0.15)", color: "white", border: "1.5px solid rgba(255,255,255,0.3)" }}
+              onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.25)" }}
+              onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.15)" }}>
+              🔄 Redo Draw
+            </button>
           </div>
         </div>
       ) : (
