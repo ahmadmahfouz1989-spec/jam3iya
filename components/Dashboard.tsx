@@ -31,10 +31,15 @@ const card = {
   boxShadow: "0 4px 24px rgba(236,72,153,0.06), 0 1px 4px rgba(168,85,247,0.04)",
 }
 
+function dateDayStart(d: Date) {
+  const c = new Date(d); c.setHours(0, 0, 0, 0); return c
+}
+
 export default function Dashboard() {
   const [data, setData] = useState<{ round: Round; members: Member[] } | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
+  const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     const res = await fetch("/api/cycles")
@@ -79,17 +84,26 @@ export default function Dashboard() {
   )
 
   const { round, members } = data
-  const currentCycle = round.cycles.find(c => c.status === "OPEN") || round.cycles.find(c => c.status === "UPCOMING")
-  const paidIds = new Set(currentCycle?.payments.map(p => p.memberId) ?? [])
-  const paidCount = members.filter(m => paidIds.has(m.id)).length
+  const today = dateDayStart(new Date())
+
+  // Current cycle = most recent cycle whose date has arrived, else first upcoming
+  const pastCycles = round.cycles.filter(c => dateDayStart(new Date(c.date)) <= today)
+  const currentCycle = pastCycles.at(-1) ?? round.cycles[0]
+
+  // Selected cycle for payment view — defaults to current
+  const selectedCycle = (selectedCycleId ? round.cycles.find(c => c.id === selectedCycleId) : null) ?? currentCycle
+
+  const currentPaidIds = new Set(currentCycle?.payments.map(p => p.memberId) ?? [])
+  const currentPaidCount = members.filter(m => currentPaidIds.has(m.id)).length
+  const pot = round.contributionAmount * currentPaidCount
+
+  const selectedPaidIds = new Set(selectedCycle?.payments.map(p => p.memberId) ?? [])
+  const selectedPaidCount = members.filter(m => selectedPaidIds.has(m.id)).length
   const totalMembers = members.length
-  const pot = round.contributionAmount * paidCount
-  const allPaid = paidCount === totalMembers
 
   function daysUntil(dateStr: string) {
-    const d = new Date(dateStr); d.setHours(0, 0, 0, 0)
-    const t = new Date(); t.setHours(0, 0, 0, 0)
-    return Math.ceil((d.getTime() - t.getTime()) / 86400000)
+    const d = dateDayStart(new Date(dateStr))
+    return Math.ceil((d.getTime() - today.getTime()) / 86400000)
   }
 
   return (
@@ -110,11 +124,11 @@ export default function Dashboard() {
               <p className="text-white font-bold text-sm">
                 {new Date(currentCycle.date).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
               </p>
-              {currentCycle.status === "OPEN"
+              {dateDayStart(new Date(currentCycle.date)) <= today
                 ? <p className="text-yellow-300 text-xs font-bold mt-0.5">🎉 Draw day!</p>
                 : <p className="text-pink-200 text-xs font-medium mt-0.5">in {daysUntil(currentCycle.date)} days</p>}
             </div>
-            {currentCycle.status === "OPEN" && allPaid && (
+            {currentCycle.status === "OPEN" && (
               <Link href="/draw"
                 className="px-4 py-2 rounded-2xl text-sm font-bold transition-all"
                 style={{ background: "rgba(255,255,255,0.2)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.3)" }}>
@@ -125,32 +139,58 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Payments */}
-      {currentCycle && (
+      {/* Round selector */}
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+        {round.cycles.map(cycle => {
+          const isPast = dateDayStart(new Date(cycle.date)) <= today
+          const isSelected = cycle.id === (selectedCycle?.id)
+          return (
+            <button
+              key={cycle.id}
+              onClick={() => isPast && setSelectedCycleId(cycle.id)}
+              disabled={!isPast}
+              className="flex-shrink-0 px-4 py-2 rounded-2xl text-sm font-bold transition-all disabled:opacity-30"
+              style={{
+                background: isSelected
+                  ? "linear-gradient(135deg, #ec4899, #a855f7)"
+                  : "rgba(255,255,255,0.7)",
+                color: isSelected ? "white" : "#6b7280",
+                border: isSelected ? "none" : "1px solid rgba(251,207,232,0.5)",
+                boxShadow: isSelected ? "0 4px 16px rgba(236,72,153,0.25)" : "none",
+              }}>
+              Round {cycle.cycleNumber}
+              {cycle.draw && <span className="ml-1.5 opacity-70">🏆</span>}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Payments for selected cycle */}
+      {selectedCycle && (
         <div className="rounded-3xl p-5" style={card}>
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="font-bold text-gray-800">Payments</h2>
               <p className="text-xs text-gray-400 font-medium mt-0.5">
-                Round {currentCycle.cycleNumber} &bull;{" "}
-                {new Date(currentCycle.date).toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric" })}
+                Round {selectedCycle.cycleNumber} &bull;{" "}
+                {new Date(selectedCycle.date).toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric" })}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <div className="h-1.5 w-24 rounded-full overflow-hidden" style={{ background: "rgba(251,207,232,0.5)" }}>
                 <div className="h-full rounded-full transition-all duration-500"
-                  style={{ width: `${totalMembers ? (paidCount / totalMembers) * 100 : 0}%`, background: "linear-gradient(90deg, #ec4899, #a855f7)" }} />
+                  style={{ width: `${totalMembers ? (selectedPaidCount / totalMembers) * 100 : 0}%`, background: "linear-gradient(90deg, #ec4899, #a855f7)" }} />
               </div>
-              <span className="text-sm font-bold" style={{ color: allPaid ? "#10b981" : "#ec4899" }}>
-                {paidCount}/{totalMembers}
+              <span className="text-sm font-bold" style={{ color: selectedPaidCount === totalMembers ? "#10b981" : "#ec4899" }}>
+                {selectedPaidCount}/{totalMembers}
               </span>
             </div>
           </div>
 
           <ul className="space-y-2">
             {members.map(member => {
-              const paid = paidIds.has(member.id)
-              const isBusy = busy === `${currentCycle.id}-${member.id}`
+              const paid = selectedPaidIds.has(member.id)
+              const isBusy = busy === `${selectedCycle.id}-${member.id}`
               return (
                 <li key={member.id}
                   className="flex items-center justify-between px-4 py-3 rounded-2xl transition-all"
@@ -160,8 +200,8 @@ export default function Dashboard() {
                     <span className="text-sm font-bold text-gray-800">{member.name}</span>
                   </div>
                   <button
-                    onClick={() => togglePayment(currentCycle.id, member.id, paid)}
-                    disabled={!!busy || currentCycle.status === "COMPLETED"}
+                    onClick={() => togglePayment(selectedCycle.id, member.id, paid)}
+                    disabled={!!busy}
                     className="text-xs font-bold px-4 py-1.5 rounded-full transition-all disabled:opacity-40"
                     style={{
                       background: paid ? "rgba(167,243,208,0.5)" : "rgba(255,255,255,0.8)",
@@ -175,12 +215,6 @@ export default function Dashboard() {
               )
             })}
           </ul>
-
-          {currentCycle.status === "OPEN" && !allPaid && (
-            <p className="text-center text-xs text-gray-400 font-semibold mt-3">
-              Waiting for {totalMembers - paidCount} more payment{totalMembers - paidCount !== 1 ? "s" : ""} before draw
-            </p>
-          )}
         </div>
       )}
 
