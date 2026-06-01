@@ -81,12 +81,8 @@ export default function Dashboard() {
   const { round, members } = data
   const currentCycle = round.cycles.find(c => c.status === "OPEN") || round.cycles.find(c => c.status === "UPCOMING")
   const paidIds = new Set(currentCycle?.payments.map(p => p.memberId) ?? [])
-  // Only members who existed when this cycle was created are expected to pay
-  const expectedMembers = currentCycle
-    ? members.filter(m => new Date(m.createdAt) <= new Date(currentCycle.createdAt))
-    : members
-  const paidCount = expectedMembers.filter(m => paidIds.has(m.id)).length
-  const totalMembers = expectedMembers.length
+  const paidCount = members.filter(m => paidIds.has(m.id)).length
+  const totalMembers = members.length
   const pot = round.contributionAmount * paidCount
   const allPaid = paidCount === totalMembers
 
@@ -152,7 +148,7 @@ export default function Dashboard() {
           </div>
 
           <ul className="space-y-2">
-            {expectedMembers.map(member => {
+            {members.map(member => {
               const paid = paidIds.has(member.id)
               const isBusy = busy === `${currentCycle.id}-${member.id}`
               return (
