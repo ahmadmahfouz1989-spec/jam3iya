@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { isCycleOpen } from "@/lib/schedule"
 
 export async function GET() {
   const activeRound = await prisma.round.findFirst({
@@ -20,11 +19,13 @@ export async function GET() {
 
   const members = await prisma.member.findMany({ where: { isActive: true } })
 
-  // Auto-open cycles whose date has arrived
-  for (const cycle of activeRound.cycles) {
-    if (cycle.status === "UPCOMING" && isCycleOpen(cycle.date)) {
-      await prisma.cycle.update({ where: { id: cycle.id }, data: { status: "OPEN" } })
-      cycle.status = "OPEN"
+  // Always keep the next undone cycle open so draws can happen at any time
+  const hasOpen = activeRound.cycles.some(c => c.status === "OPEN")
+  if (!hasOpen) {
+    const next = activeRound.cycles.find(c => c.status === "UPCOMING")
+    if (next) {
+      await prisma.cycle.update({ where: { id: next.id }, data: { status: "OPEN" } })
+      next.status = "OPEN"
     }
   }
 
