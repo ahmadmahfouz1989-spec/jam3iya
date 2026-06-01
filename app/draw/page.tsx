@@ -254,21 +254,6 @@ export default function DrawPage() {
 
             {/* Action area */}
             {!result && !spinning && (() => {
-              const paidMemberIds = new Set(openCycle.payments.map(p => p.memberId))
-              const unpaid = data.members.filter(m => !paidMemberIds.has(m.id))
-
-              if (unpaid.length > 0) {
-                return (
-                  <div className="rounded-2xl px-5 py-4 text-center"
-                    style={{ background: "rgba(255,228,230,0.5)", border: "1.5px solid rgba(254,202,202,0.8)" }}>
-                    <p className="font-bold text-rose-500 text-sm">Waiting on payments</p>
-                    <p className="text-rose-400 text-sm mt-1">
-                      {unpaid.map(m => m.name).join(", ")}
-                    </p>
-                  </div>
-                )
-              }
-
               if (mode === null) {
                 return (
                   <div className="grid grid-cols-2 gap-3">

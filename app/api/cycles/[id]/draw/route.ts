@@ -20,17 +20,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const wonIds = new Set(winnersThisRound.map((d) => d.winnerId))
 
   const activeMembers = await prisma.member.findMany({ where: { isActive: true } })
-  const payments = await prisma.payment.findMany({ where: { cycleId } })
-  const paidIds = new Set(payments.map((p) => p.memberId))
-
-  const unpaid = activeMembers.filter((m) => !paidIds.has(m.id))
-  if (unpaid.length > 0) {
-    const names = unpaid.map((m) => m.name).join(", ")
-    return NextResponse.json(
-      { error: `Can't draw yet — still waiting on: ${names}` },
-      { status: 400 }
-    )
-  }
 
   const eligible = activeMembers.filter((m) => !wonIds.has(m.id))
   if (eligible.length === 0) {
