@@ -91,13 +91,14 @@ export default function Dashboard() {
   const currentCycle = pastCycles.at(-1) ?? round.cycles[0]
 
   const openCycle = round.cycles.find(c => c.status === "OPEN")
+  const heroCycle = openCycle ?? currentCycle
 
   // Selected cycle for payment view — defaults to the open cycle, then current
   const selectedCycle = (selectedCycleId ? round.cycles.find(c => c.id === selectedCycleId) : null) ?? openCycle ?? currentCycle
 
-  const currentPaidIds = new Set(currentCycle?.payments.map(p => p.memberId) ?? [])
-  const currentPaidCount = members.filter(m => currentPaidIds.has(m.id)).length
-  const pot = round.contributionAmount * currentPaidCount
+  const heroPaidIds = new Set(heroCycle?.payments.map(p => p.memberId) ?? [])
+  const heroPaidCount = members.filter(m => heroPaidIds.has(m.id)).length
+  const pot = round.contributionAmount * heroPaidCount
 
   const selectedPaidIds = new Set(selectedCycle?.payments.map(p => p.memberId) ?? [])
   const selectedPaidCount = members.filter(m => selectedPaidIds.has(m.id)).length
@@ -119,18 +120,18 @@ export default function Dashboard() {
         <p className="text-5xl font-black mt-1 tracking-tight">{currency(pot)}</p>
         <p className="text-pink-200 text-sm mt-1 font-medium">{currency(round.contributionAmount)} × {totalMembers} members</p>
 
-        {currentCycle && (
+        {heroCycle && (
           <div className="mt-4 flex items-center justify-between">
             <div>
-              <p className="text-white/80 text-xs font-semibold">Round {currentCycle.cycleNumber}</p>
+              <p className="text-white/80 text-xs font-semibold">Round {heroCycle.cycleNumber}</p>
               <p className="text-white font-bold text-sm">
-                {new Date(currentCycle.date).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+                {new Date(heroCycle.date).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
               </p>
-              {dateDayStart(new Date(currentCycle.date)) <= today
+              {dateDayStart(new Date(heroCycle.date)) <= today
                 ? <p className="text-yellow-300 text-xs font-bold mt-0.5">🎉 Draw day!</p>
-                : <p className="text-pink-200 text-xs font-medium mt-0.5">in {daysUntil(currentCycle.date)} days</p>}
+                : <p className="text-pink-200 text-xs font-medium mt-0.5">in {daysUntil(heroCycle.date)} days</p>}
             </div>
-            {currentCycle.status === "OPEN" && (
+            {heroCycle.status === "OPEN" && (
               <Link href="/draw"
                 className="px-4 py-2 rounded-2xl text-sm font-bold transition-all"
                 style={{ background: "rgba(255,255,255,0.2)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.3)" }}>
