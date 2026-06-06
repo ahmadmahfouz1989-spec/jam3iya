@@ -123,7 +123,7 @@ export default function Dashboard() {
             <div>
               <p className="text-white/80 text-xs font-semibold">Round {heroCycle.cycleNumber}</p>
               <p className="text-white font-bold text-sm">
-                {new Date(heroCycle.date).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+                {new Date(heroCycle.date).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
               </p>
               {dateDayStart(new Date(heroCycle.date)) <= today
                 ? <p className="text-yellow-300 text-xs font-bold mt-0.5">🎉 Draw day!</p>
@@ -174,7 +174,7 @@ export default function Dashboard() {
               <h2 className="font-bold text-gray-800">Payments</h2>
               <p className="text-xs text-gray-400 font-medium mt-0.5">
                 Round {selectedCycle.cycleNumber} &bull;{" "}
-                {new Date(selectedCycle.date).toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric" })}
+                {new Date(selectedCycle.date).toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric", year: "numeric" })}
               </p>
             </div>
             <div className="flex items-center gap-2">
