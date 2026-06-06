@@ -90,8 +90,10 @@ export default function Dashboard() {
   const pastCycles = round.cycles.filter(c => dateDayStart(new Date(c.date)) <= today)
   const currentCycle = pastCycles.at(-1) ?? round.cycles[0]
 
-  // Selected cycle for payment view — defaults to current
-  const selectedCycle = (selectedCycleId ? round.cycles.find(c => c.id === selectedCycleId) : null) ?? currentCycle
+  const openCycle = round.cycles.find(c => c.status === "OPEN")
+
+  // Selected cycle for payment view — defaults to the open cycle, then current
+  const selectedCycle = (selectedCycleId ? round.cycles.find(c => c.id === selectedCycleId) : null) ?? openCycle ?? currentCycle
 
   const currentPaidIds = new Set(currentCycle?.payments.map(p => p.memberId) ?? [])
   const currentPaidCount = members.filter(m => currentPaidIds.has(m.id)).length
@@ -147,8 +149,8 @@ export default function Dashboard() {
           return (
             <button
               key={cycle.id}
-              onClick={() => isPast && setSelectedCycleId(cycle.id)}
-              disabled={!isPast}
+              onClick={() => (isPast || cycle.status === "OPEN") && setSelectedCycleId(cycle.id)}
+              disabled={!isPast && cycle.status !== "OPEN"}
               className="flex-shrink-0 px-4 py-2 rounded-2xl text-sm font-bold transition-all disabled:opacity-30"
               style={{
                 background: isSelected
