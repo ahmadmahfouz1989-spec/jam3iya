@@ -96,9 +96,7 @@ export default function Dashboard() {
   // Selected cycle for payment view — defaults to the open cycle, then current
   const selectedCycle = (selectedCycleId ? round.cycles.find(c => c.id === selectedCycleId) : null) ?? openCycle ?? currentCycle
 
-  const heroPaidIds = new Set(heroCycle?.payments.map(p => p.memberId) ?? [])
-  const heroPaidCount = members.filter(m => heroPaidIds.has(m.id)).length
-  const pot = round.contributionAmount * heroPaidCount
+  const pot = round.contributionAmount * members.length
 
   const selectedPaidIds = new Set(selectedCycle?.payments.map(p => p.memberId) ?? [])
   const selectedPaidCount = members.filter(m => selectedPaidIds.has(m.id)).length
