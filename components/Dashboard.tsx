@@ -233,7 +233,7 @@ export default function Dashboard() {
               }}>
               <p className="font-black text-gray-700 text-sm">#{cycle.cycleNumber}</p>
               <p className="text-xs text-gray-400 font-medium mt-0.5">
-                {new Date(cycle.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                {new Date(cycle.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
               </p>
               {cycle.draw
                 ? <p className="text-xs font-bold text-emerald-600 mt-1.5">🏆 {cycle.draw.winner.name}</p>
