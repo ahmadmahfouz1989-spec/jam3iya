@@ -148,8 +148,8 @@ export default function Dashboard() {
           return (
             <button
               key={cycle.id}
-              onClick={() => (isPast || cycle.status === "OPEN") && setSelectedCycleId(cycle.id)}
-              disabled={!isPast && cycle.status !== "OPEN"}
+              onClick={() => (isPast || cycle.status !== "UPCOMING") && setSelectedCycleId(cycle.id)}
+              disabled={!isPast && cycle.status === "UPCOMING"}
               className="flex-shrink-0 px-4 py-2 rounded-2xl text-sm font-bold transition-all disabled:opacity-30"
               style={{
                 background: isSelected
