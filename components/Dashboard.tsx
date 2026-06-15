@@ -86,15 +86,16 @@ export default function Dashboard() {
   const { round, members } = data
   const today = dateDayStart(new Date())
 
-  // Current cycle = most recent cycle whose date has arrived, else first upcoming
-  const pastCycles = round.cycles.filter(c => dateDayStart(new Date(c.date)) <= today)
-  const currentCycle = pastCycles.at(-1) ?? round.cycles[0]
-
   const openCycle = round.cycles.find(c => c.status === "OPEN")
+
+  // Current cycle = next cycle by date (nearest upcoming draw date)
+  const currentCycle =
+    round.cycles.find(c => dateDayStart(new Date(c.date)) >= today) ?? round.cycles.at(-1)
+
   const heroCycle = openCycle ?? currentCycle
 
-  // Selected cycle for payment view — defaults to most recent past cycle, then open
-  const selectedCycle = (selectedCycleId ? round.cycles.find(c => c.id === selectedCycleId) : null) ?? currentCycle ?? openCycle
+  // Selected cycle for payment view — defaults to nearest upcoming draw date
+  const selectedCycle = (selectedCycleId ? round.cycles.find(c => c.id === selectedCycleId) : null) ?? currentCycle
 
   const pot = round.contributionAmount * members.length
 
