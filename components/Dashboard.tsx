@@ -93,8 +93,8 @@ export default function Dashboard() {
   const openCycle = round.cycles.find(c => c.status === "OPEN")
   const heroCycle = openCycle ?? currentCycle
 
-  // Selected cycle for payment view — defaults to the open cycle, then current
-  const selectedCycle = (selectedCycleId ? round.cycles.find(c => c.id === selectedCycleId) : null) ?? openCycle ?? currentCycle
+  // Selected cycle for payment view — defaults to most recent past cycle, then open
+  const selectedCycle = (selectedCycleId ? round.cycles.find(c => c.id === selectedCycleId) : null) ?? currentCycle ?? openCycle
 
   const pot = round.contributionAmount * members.length
 
